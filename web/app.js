@@ -1,6 +1,7 @@
 const state = {
   selectedSymbol: "TECH_A",
   lastPayload: null,
+  localSnapshots: [],
   hoverIndex: null,
   hoverY: null,
   chartLayout: null,
@@ -95,7 +96,7 @@ function render(payload) {
   renderSymbolOptions(payload);
   renderHeader(payload);
   renderAccount(payload.account);
-  drawEquityCurve(payload.snapshots);
+  drawEquityCurve(equitySnapshotsFor(payload), !Array.isArray(payload.snapshots));
   renderPositions(payload.positions);
   renderFills(payload.fills, payload.selected_symbol);
   drawChart(payload.candles, payload.fills);
@@ -140,7 +141,22 @@ function renderAccount(account) {
   els.drawdown.textContent = percent(account.max_drawdown);
 }
 
-function drawEquityCurve(snapshots) {
+function equitySnapshotsFor(payload) {
+  if (Array.isArray(payload.snapshots) && payload.snapshots.length) {
+    state.localSnapshots = [];
+    return payload.snapshots;
+  }
+  if (!payload.account) {
+    return [];
+  }
+  const last = state.localSnapshots[state.localSnapshots.length - 1];
+  if (!last || last.timestamp !== payload.account.timestamp || last.total_equity !== payload.account.total_equity) {
+    state.localSnapshots.push(payload.account);
+  }
+  return state.localSnapshots;
+}
+
+function drawEquityCurve(snapshots, localFallback = false) {
   const canvas = els.equityCanvas;
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
@@ -151,7 +167,11 @@ function drawEquityCurve(snapshots) {
   const width = rect.width;
   const height = rect.height;
   ctx.clearRect(0, 0, width, height);
-  if (!snapshots || !snapshots.length) return;
+  if (!snapshots || !snapshots.length) {
+    els.equitySummary.textContent = "等待数据";
+    drawEmptyEquityMessage(ctx, width, height, "等待账户快照");
+    return;
+  }
 
   const values = snapshots.map((snapshot) => Number(snapshot.total_equity));
   const start = values[0];
@@ -196,6 +216,13 @@ function drawEquityCurve(snapshots) {
   });
   ctx.stroke();
 
+  if (values.length === 1) {
+    ctx.fillStyle = latest >= start ? "#d64545" : "#16845f";
+    ctx.beginPath();
+    ctx.arc(xFor(0), yFor(latest), 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.fillStyle = "#687789";
   ctx.font = "11px Segoe UI, Arial";
   ctx.fillText(money(maxValue), 6, padding.top + 4);
@@ -205,6 +232,21 @@ function drawEquityCurve(snapshots) {
   const returnRate = latest / start - 1;
   els.equitySummary.textContent = `${money(latest)} | ${percent(returnRate)}`;
   els.equitySummary.className = returnRate >= 0 ? "up" : "down";
+  if (localFallback) {
+    ctx.fillStyle = "#9a5b00";
+    ctx.font = "12px Segoe UI, Arial";
+    ctx.fillText("临时记录中，重启后端可显示完整曲线", padding.left, height - 6);
+  }
+}
+
+function drawEmptyEquityMessage(ctx, width, height, message) {
+  ctx.fillStyle = "#687789";
+  ctx.font = "13px Segoe UI, Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(message, width / 2, height / 2);
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
 }
 
 function renderPositions(positions) {
@@ -601,7 +643,7 @@ els.orderForm.addEventListener("submit", async (event) => {
 window.addEventListener("resize", () => {
   if (state.lastPayload) {
     drawChart(state.lastPayload.candles, state.lastPayload.fills);
-    drawEquityCurve(state.lastPayload.snapshots);
+    drawEquityCurve(equitySnapshotsFor(state.lastPayload), !Array.isArray(state.lastPayload.snapshots));
   }
 });
 
