@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 
+from stock_trainer.historical import create_blind_historical_market, load_historical_series
 from stock_trainer.models import Order, OrderStatus, Side
 from stock_trainer.simulator import TradingSimulator
 
@@ -50,6 +53,36 @@ class TradingEngineTest(unittest.TestCase):
         report = simulator.report()
         self.assertGreaterEqual(report.trade_count, 2)
         self.assertTrue(report.coach_notes)
+
+    def test_load_historical_csv_and_anonymize_symbols(self) -> None:
+        with TemporaryDirectory() as tmp:
+            data_dir = Path(tmp)
+            self._write_csv(data_dir / "600000.csv", "600000", 12.0)
+            self._write_csv(data_dir / "000001.csv", "000001", 9.0)
+            series = load_historical_series(data_dir / "600000.csv")
+            self.assertEqual(series.source_symbol, "600000")
+            market = create_blind_historical_market(data_dir, days=10, seed=9, symbols_count=2)
+            self.assertEqual(set(market.market_data), {"STOCK_A", "STOCK_B"})
+            self.assertIn("STOCK_A", market.aliases)
+            self.assertEqual(len(market.market_data["STOCK_A"]), 10)
+            self.assertEqual(market.market_data["STOCK_A"][0].timestamp.date().isoformat(), "2020-01-02")
+
+    def test_simulator_can_use_historical_market(self) -> None:
+        with TemporaryDirectory() as tmp:
+            data_dir = Path(tmp)
+            self._write_csv(data_dir / "300000.csv", "300000", 20.0)
+            simulator = TradingSimulator.with_historical_market(str(data_dir), days=15, seed=2, cash=50_000)
+            self.assertEqual(list(simulator.market_data), ["STOCK_A"])
+            self.assertGreater(simulator.current_price("STOCK_A"), 0)
+
+    def _write_csv(self, path: Path, symbol: str, start_price: float) -> None:
+        lines = ["date,symbol,industry,open,high,low,close,volume"]
+        for index in range(30):
+            price = start_price + index * 0.15
+            lines.append(
+                f"2023-01-{index + 1:02d},{symbol},finance,{price:.2f},{price + 0.30:.2f},{price - 0.20:.2f},{price + 0.10:.2f},{1000000 + index}"
+            )
+        path.write_text("\n".join(lines), encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ const state = {
 
 const els = {
   sessionMeta: document.querySelector("#sessionMeta"),
+  modeSelect: document.querySelector("#modeSelect"),
   symbolSelect: document.querySelector("#symbolSelect"),
   stepOne: document.querySelector("#stepOne"),
   stepFive: document.querySelector("#stepFive"),
@@ -72,6 +73,17 @@ async function loadState(symbol = state.selectedSymbol) {
   render(payload);
 }
 
+async function loadDatasets() {
+  const datasets = await api("/api/datasets");
+  const historicalOption = Array.from(els.modeSelect.options).find((option) => option.value === "historical");
+  if (historicalOption) {
+    historicalOption.disabled = !datasets.historical_available;
+    historicalOption.textContent = datasets.historical_available
+      ? `历史盲测 (${datasets.historical_count})`
+      : "历史盲测 (请放CSV)";
+  }
+}
+
 function render(payload) {
   state.lastPayload = payload;
   state.selectedSymbol = payload.selected_symbol;
@@ -106,7 +118,8 @@ function renderHeader(payload) {
   const current = candles[candles.length - 1];
   const previous = candles[candles.length - 2] || current;
   const change = current.close / previous.close - 1;
-  els.sessionMeta.textContent = `${current.timestamp.slice(0, 10)} | 第 ${payload.index + 1} / ${payload.total_bars} 根 K 线`;
+  els.modeSelect.value = payload.mode || "generated";
+  els.sessionMeta.textContent = `${current.timestamp.slice(0, 10)} | 第 ${payload.index + 1} / ${payload.total_bars} 根 K 线 | ${payload.message || ""}`;
   els.symbolTitle.textContent = current.symbol;
   els.symbolSub.textContent = `${current.industry} | 成交量 ${current.volume.toLocaleString("zh-CN")}`;
   els.lastPrice.textContent = money(current.close);
@@ -454,16 +467,28 @@ async function step(bars) {
 
 async function reset() {
   const seed = Math.floor(Math.random() * 100000);
-  const payload = await api("/api/reset", {
-    method: "POST",
-    body: JSON.stringify({ seed, days: 260, cash: 100000, symbol: state.selectedSymbol }),
-  });
-  els.orderMessage.textContent = `已重置场景 seed=${seed}`;
-  els.orderMessage.className = "message";
-  render(payload);
+  const mode = els.modeSelect.value;
+  const days = mode === "historical" ? 180 : 260;
+  try {
+    const payload = await api("/api/reset", {
+      method: "POST",
+      body: JSON.stringify({ mode, seed, days, cash: 100000, symbol: state.selectedSymbol }),
+    });
+    els.orderMessage.textContent = `已重置场景 seed=${seed}`;
+    els.orderMessage.className = "message";
+    render(payload);
+    loadDatasets();
+  } catch (error) {
+    els.orderMessage.textContent = error.message;
+    els.orderMessage.className = "message error";
+  }
 }
 
 els.symbolSelect.addEventListener("change", (event) => loadState(event.target.value));
+els.modeSelect.addEventListener("change", () => {
+  els.orderMessage.textContent = "切换模式后点击重置开始新训练";
+  els.orderMessage.className = "message";
+});
 els.stepOne.addEventListener("click", () => step(1));
 els.stepFive.addEventListener("click", () => step(5));
 els.resetSession.addEventListener("click", reset);
@@ -508,4 +533,5 @@ window.addEventListener("resize", () => {
 });
 
 els.limitRow.style.display = "none";
+loadDatasets();
 loadState();

@@ -13,6 +13,7 @@
 - 交易标记：买入/卖出会以 B/S 标记显示在对应 K 线上，并展示成交价格。
 - 鼠标悬浮：移动到 K 线可查看日期、开高低收、成交量、涨跌幅和指针价。
 - 持仓细节：显示持股、可卖、成本价、现价、市值和浮动盈亏。
+- 历史盲测：支持从 `data/historical/*.csv` 导入真实历史行情，随机抽取片段并隐藏真实代码和日期。
 
 ## 启动网页训练台
 
@@ -44,6 +45,29 @@ Start-Process "http://127.0.0.1:8765/"
 python scripts/demo.py
 ```
 
+## 导入真实历史行情
+
+把 CSV 放入：
+
+```text
+data/historical/
+```
+
+CSV 至少包含字段：
+
+```csv
+date,open,high,low,close,volume
+2023-01-03,10.20,10.50,10.10,10.32,1234567
+```
+
+也可以包含：
+
+```csv
+symbol,industry
+```
+
+然后启动网页训练台，选择“历史盲测”，点击“重置”。系统会随机抽取历史片段，并显示为 `STOCK_A`、`STOCK_B`，避免你直接记住真实股票和日期。
+
 ## 运行测试
 
 ```powershell
@@ -72,6 +96,7 @@ API 启动后可以访问：
 stock_trainer/
   clock.py       虚拟市场时钟
   data.py        训练行情生成器
+  historical.py  真实历史 CSV 导入和匿名盲测
   broker.py      撮合、费用、T+1、持仓
   simulator.py   训练会话主入口
   analytics.py   复盘报告和交易诊断

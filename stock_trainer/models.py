@@ -25,7 +25,7 @@ class OrderStatus(str, Enum):
     CANCELED = "canceled"
 
 
-MarketRegime = Literal["bull", "bear", "range", "panic", "recovery"]
+MarketRegime = Literal["bull", "bear", "range", "panic", "recovery", "historical"]
 
 
 @dataclass(frozen=True)

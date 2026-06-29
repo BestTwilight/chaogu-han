@@ -22,9 +22,14 @@ if str(ROOT) not in sys.path:
 
 from stock_trainer.models import Order, OrderType, Side
 from stock_trainer.simulator import TradingSimulator
+from stock_trainer.historical import HistoricalDataError, list_historical_csvs
 
 
-simulator = TradingSimulator.with_generated_market(days=260, seed=7, cash=100_000)
+DATA_DIR = ROOT / "data" / "historical"
+session_mode = "generated"
+session_seed = 7
+session_message = "结构化模拟行情"
+simulator = TradingSimulator.with_generated_market(days=260, seed=session_seed, cash=100_000)
 
 
 class TrainerHandler(SimpleHTTPRequestHandler):
@@ -41,6 +46,9 @@ class TrainerHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/api/report":
             self._send_json(simulator.report())
+            return
+        if parsed.path == "/api/datasets":
+            self._send_json(_datasets_payload())
             return
         if parsed.path == "/":
             self.path = "/index.html"
@@ -74,14 +82,10 @@ class TrainerHandler(SimpleHTTPRequestHandler):
                 )
                 return
             if parsed.path == "/api/reset":
-                simulator = TradingSimulator.with_generated_market(
-                    days=int(payload.get("days", 260)),
-                    seed=int(payload.get("seed", 7)),
-                    cash=float(payload.get("cash", 100_000)),
-                )
+                _reset_simulator(payload)
                 self._send_json(_state_payload(payload.get("symbol")))
                 return
-        except (KeyError, ValueError, TypeError) as exc:
+        except (HistoricalDataError, KeyError, ValueError, TypeError) as exc:
             self._send_json({"error": str(exc)}, status=400)
             return
         self._send_json({"error": "unknown route"}, status=404)
@@ -126,12 +130,48 @@ def _state_payload(selected_symbol: str | None = None) -> dict[str, Any]:
         "index": index,
         "total_bars": len(simulator.clock.timeline),
         "is_finished": simulator.clock.is_finished,
+        "mode": session_mode,
+        "seed": session_seed,
+        "message": session_message,
         "candles": simulator.market_data[symbol][: index + 1],
         "current_candles": current_candles,
         "account": simulator.snapshots[-1],
         "positions": positions,
         "fills": simulator.portfolio.fills,
     }
+
+
+def _datasets_payload() -> dict[str, Any]:
+    csvs = list_historical_csvs(DATA_DIR)
+    return {
+        "historical_available": bool(csvs),
+        "historical_count": len(csvs),
+        "data_dir": str(DATA_DIR),
+        "files": [path.name for path in csvs],
+    }
+
+
+def _reset_simulator(payload: dict[str, Any]) -> None:
+    global simulator, session_mode, session_seed, session_message
+    mode = str(payload.get("mode", "generated"))
+    days = int(payload.get("days", 260 if mode == "generated" else 180))
+    seed = int(payload.get("seed", 7))
+    cash = float(payload.get("cash", 100_000))
+    if mode == "historical":
+        simulator = TradingSimulator.with_historical_market(
+            data_dir=str(DATA_DIR),
+            days=days,
+            seed=seed,
+            cash=cash,
+            symbols_count=int(payload.get("symbols_count", 5)),
+        )
+        session_mode = "historical"
+        session_message = "历史盲测：真实日期和股票代码已隐藏"
+    else:
+        simulator = TradingSimulator.with_generated_market(days=days, seed=seed, cash=cash)
+        session_mode = "generated"
+        session_message = "结构化模拟行情"
+    session_seed = seed
 
 
 def _json_default(value: Any) -> Any:
