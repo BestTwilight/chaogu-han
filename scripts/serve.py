@@ -136,6 +136,7 @@ def _state_payload(selected_symbol: str | None = None) -> dict[str, Any]:
         "candles": simulator.market_data[symbol][: index + 1],
         "current_candles": current_candles,
         "account": simulator.snapshots[-1],
+        "snapshots": simulator.snapshots,
         "positions": positions,
         "fills": simulator.portfolio.fills,
     }

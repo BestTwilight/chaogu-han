@@ -75,6 +75,14 @@ class TradingEngineTest(unittest.TestCase):
             self.assertEqual(list(simulator.market_data), ["STOCK_A"])
             self.assertGreater(simulator.current_price("STOCK_A"), 0)
 
+    def test_snapshots_track_equity_curve(self) -> None:
+        simulator = TradingSimulator.with_generated_market(days=20, seed=10, cash=100_000)
+        simulator.step(3)
+        simulator.submit_order(Order(symbol="TECH_A", side=Side.BUY, quantity=1000))
+        simulator.step(2)
+        self.assertGreaterEqual(len(simulator.snapshots), 4)
+        self.assertTrue(all(snapshot.total_equity > 0 for snapshot in simulator.snapshots))
+
     def _write_csv(self, path: Path, symbol: str, start_price: float) -> None:
         lines = ["date,symbol,industry,open,high,low,close,volume"]
         for index in range(30):

@@ -25,6 +25,8 @@ const els = {
   cash: document.querySelector("#cash"),
   marketValue: document.querySelector("#marketValue"),
   drawdown: document.querySelector("#drawdown"),
+  equityCanvas: document.querySelector("#equityCanvas"),
+  equitySummary: document.querySelector("#equitySummary"),
   orderForm: document.querySelector("#orderForm"),
   orderType: document.querySelector("#orderType"),
   limitRow: document.querySelector("#limitRow"),
@@ -93,6 +95,7 @@ function render(payload) {
   renderSymbolOptions(payload);
   renderHeader(payload);
   renderAccount(payload.account);
+  drawEquityCurve(payload.snapshots);
   renderPositions(payload.positions);
   renderFills(payload.fills, payload.selected_symbol);
   drawChart(payload.candles, payload.fills);
@@ -135,6 +138,73 @@ function renderAccount(account) {
   els.cash.textContent = money(account.cash);
   els.marketValue.textContent = money(account.market_value);
   els.drawdown.textContent = percent(account.max_drawdown);
+}
+
+function drawEquityCurve(snapshots) {
+  const canvas = els.equityCanvas;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  const ctx = canvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const width = rect.width;
+  const height = rect.height;
+  ctx.clearRect(0, 0, width, height);
+  if (!snapshots || !snapshots.length) return;
+
+  const values = snapshots.map((snapshot) => Number(snapshot.total_equity));
+  const start = values[0];
+  const latest = values[values.length - 1];
+  const minValue = Math.min(...values, start);
+  const maxValue = Math.max(...values, start);
+  const range = Math.max(1, maxValue - minValue);
+  const padding = { top: 14, right: 10, bottom: 22, left: 42 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  const xFor = (index) => padding.left + (plotWidth * index) / Math.max(1, values.length - 1);
+  const yFor = (value) => padding.top + ((maxValue - value) / range) * plotHeight;
+  const startY = yFor(start);
+
+  ctx.strokeStyle = "#e5ebf1";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding.left, padding.top);
+  ctx.lineTo(padding.left, padding.top + plotHeight);
+  ctx.lineTo(width - padding.right, padding.top + plotHeight);
+  ctx.stroke();
+
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = "#aebdca";
+  ctx.beginPath();
+  ctx.moveTo(padding.left, startY);
+  ctx.lineTo(width - padding.right, startY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.strokeStyle = latest >= start ? "#d64545" : "#16845f";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  values.forEach((value, index) => {
+    const x = xFor(index);
+    const y = yFor(value);
+    if (index === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  });
+  ctx.stroke();
+
+  ctx.fillStyle = "#687789";
+  ctx.font = "11px Segoe UI, Arial";
+  ctx.fillText(money(maxValue), 6, padding.top + 4);
+  ctx.fillText(money(minValue), 6, padding.top + plotHeight);
+  ctx.fillText("初始", padding.left + 4, Math.max(12, startY - 4));
+
+  const returnRate = latest / start - 1;
+  els.equitySummary.textContent = `${money(latest)} | ${percent(returnRate)}`;
+  els.equitySummary.className = returnRate >= 0 ? "up" : "down";
 }
 
 function renderPositions(positions) {
@@ -529,7 +599,10 @@ els.orderForm.addEventListener("submit", async (event) => {
 });
 
 window.addEventListener("resize", () => {
-  if (state.lastPayload) drawChart(state.lastPayload.candles, state.lastPayload.fills);
+  if (state.lastPayload) {
+    drawChart(state.lastPayload.candles, state.lastPayload.fills);
+    drawEquityCurve(state.lastPayload.snapshots);
+  }
 });
 
 els.limitRow.style.display = "none";
