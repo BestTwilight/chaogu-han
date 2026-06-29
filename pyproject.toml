@@ -1,0 +1,16 @@
+[project]
+name = "stock-trainer"
+version = "0.1.0"
+description = "Offline stock trading training sandbox with realistic market mechanics."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+api = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

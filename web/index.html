@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>股票交易训练台</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>股票交易训练台</h1>
+          <p id="sessionMeta">加载中</p>
+        </div>
+        <div class="toolbar">
+          <select id="symbolSelect" aria-label="选择标的"></select>
+          <button id="stepOne" type="button">推进 1 日</button>
+          <button id="stepFive" type="button">推进 5 日</button>
+          <button id="resetSession" type="button">重置</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <div class="chart-panel">
+          <div class="chart-head">
+            <div>
+              <h2 id="symbolTitle">TECH_A</h2>
+              <p id="symbolSub">--</p>
+            </div>
+            <div class="quote-strip">
+              <span id="lastPrice">--</span>
+              <span id="lastChange">--</span>
+              <span id="regimeTag">--</span>
+            </div>
+          </div>
+          <div id="hoverInfo" class="hover-info">移动鼠标查看 K 线详情</div>
+          <div class="chart-wrap">
+            <canvas id="priceCanvas" width="1100" height="560"></canvas>
+            <div id="chartTooltip" class="chart-tooltip" hidden></div>
+          </div>
+        </div>
+
+        <aside class="side-panel">
+          <section class="panel">
+            <h2>账户</h2>
+            <div class="metric-grid">
+              <div><span>总权益</span><strong id="totalEquity">--</strong></div>
+              <div><span>现金</span><strong id="cash">--</strong></div>
+              <div><span>持仓市值</span><strong id="marketValue">--</strong></div>
+              <div><span>最大回撤</span><strong id="drawdown">--</strong></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <h2>下单</h2>
+            <form id="orderForm" class="order-form">
+              <div class="segmented">
+                <label><input type="radio" name="side" value="buy" checked> 买入</label>
+                <label><input type="radio" name="side" value="sell"> 卖出</label>
+              </div>
+              <div class="form-row">
+                <label for="quantity">数量</label>
+                <input id="quantity" name="quantity" type="number" min="100" step="100" value="1000">
+              </div>
+              <div class="form-row">
+                <label for="orderType">类型</label>
+                <select id="orderType" name="order_type">
+                  <option value="market">市价</option>
+                  <option value="limit">限价</option>
+                </select>
+              </div>
+              <div class="form-row" id="limitRow">
+                <label for="limitPrice">限价</label>
+                <input id="limitPrice" name="limit_price" type="number" min="0" step="0.01" placeholder="价格">
+              </div>
+              <button class="primary" type="submit">提交订单</button>
+              <p id="orderMessage" class="message"></p>
+            </form>
+          </section>
+
+          <section class="panel">
+            <h2>持仓</h2>
+            <div id="positions" class="list empty">暂无持仓</div>
+          </section>
+
+          <section class="panel">
+            <h2>成交</h2>
+            <div id="fills" class="list empty">暂无成交</div>
+          </section>
+
+          <section class="panel">
+            <h2>复盘</h2>
+            <div class="metric-grid compact">
+              <div><span>收益率</span><strong id="returnRate">--</strong></div>
+              <div><span>成交数</span><strong id="tradeCount">--</strong></div>
+              <div><span>胜率</span><strong id="winRate">--</strong></div>
+              <div><span>盈亏比</span><strong id="profitFactor">--</strong></div>
+            </div>
+            <ul id="coachNotes" class="notes"></ul>
+          </section>
+        </aside>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
