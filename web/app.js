@@ -35,6 +35,7 @@ const els = {
   orderMessage: document.querySelector("#orderMessage"),
   positions: document.querySelector("#positions"),
   fills: document.querySelector("#fills"),
+  tradeReviews: document.querySelector("#tradeReviews"),
   returnRate: document.querySelector("#returnRate"),
   tradeCount: document.querySelector("#tradeCount"),
   winRate: document.querySelector("#winRate"),
@@ -99,6 +100,7 @@ function render(payload) {
   drawEquityCurve(equitySnapshotsFor(payload), !Array.isArray(payload.snapshots));
   renderPositions(payload.positions);
   renderFills(payload.fills, payload.selected_symbol);
+  renderTradeReviews(payload.trade_reviews || [], payload.selected_symbol);
   drawChart(payload.candles, payload.fills);
   loadReport();
 }
@@ -303,6 +305,41 @@ function renderFills(fills, symbol) {
       </div>
     `;
     els.fills.appendChild(item);
+  });
+}
+
+function renderTradeReviews(reviews, symbol) {
+  const entries = reviews.filter((review) => review.symbol === symbol).slice(-6).reverse();
+  if (!entries.length) {
+    els.tradeReviews.className = "list empty";
+    els.tradeReviews.textContent = "卖出后生成复盘";
+    return;
+  }
+  els.tradeReviews.className = "list";
+  els.tradeReviews.innerHTML = "";
+  entries.forEach((review) => {
+    const item = document.createElement("div");
+    const pnlClass = review.pnl >= 0 ? "up" : "down";
+    item.className = "trade-review";
+    item.innerHTML = `
+      <div>
+        <strong>${review.id} ${review.symbol}</strong>
+        <span>${review.entry_time} → ${review.exit_time} | ${review.quantity} 股 | ${review.holding_bars} 根K线</span>
+        <span>买 ${money(review.entry_price)} | 卖 ${money(review.exit_price)}</span>
+        ${review.reason ? `<span>理由：${escapeHtml(review.reason)}</span>` : ""}
+        <div class="trade-tags">
+          <em>最大浮盈 ${percent(review.max_favorable_return)}</em>
+          <em>最大浮亏 ${percent(review.max_adverse_return)}</em>
+          <em>${review.planned_stop_hit ? "触碰止损" : "未碰止损"}</em>
+          <em>${review.planned_target_hit ? "触碰目标" : "未碰目标"}</em>
+        </div>
+      </div>
+      <div>
+        <strong class="${pnlClass}">${signedMoney(review.pnl)}</strong>
+        <span class="${pnlClass}">${percent(review.return_rate)}</span>
+      </div>
+    `;
+    els.tradeReviews.appendChild(item);
   });
 }
 

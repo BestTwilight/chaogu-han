@@ -51,6 +51,29 @@ class TradingEngineTest(unittest.TestCase):
         self.assertEqual(fill.target_price, 48.0)
         self.assertEqual(fill.review_note, "跌破前低离场")
 
+    def test_trade_reviews_pair_closed_trades(self) -> None:
+        simulator = TradingSimulator.with_generated_market(days=40, seed=8, cash=100_000)
+        entry_price = simulator.current_price("TECH_A")
+        simulator.submit_order(
+            Order(
+                symbol="TECH_A",
+                side=Side.BUY,
+                quantity=1000,
+                reason="趋势试仓",
+                stop_loss=entry_price * 0.92,
+                target_price=entry_price * 1.08,
+            )
+        )
+        simulator.step(6)
+        simulator.submit_order(Order(symbol="TECH_A", side=Side.SELL, quantity=1000))
+        reviews = simulator.trade_reviews()
+        self.assertEqual(len(reviews), 1)
+        self.assertEqual(reviews[0].symbol, "TECH_A")
+        self.assertEqual(reviews[0].quantity, 1000)
+        self.assertEqual(reviews[0].reason, "趋势试仓")
+        self.assertIsInstance(reviews[0].planned_stop_hit, bool)
+        self.assertIsInstance(reviews[0].planned_target_hit, bool)
+
     def test_t_plus_one_blocks_same_day_sell(self) -> None:
         simulator = TradingSimulator.with_generated_market(days=30, seed=5, cash=100_000)
         simulator.submit_order(Order(symbol="TECH_A", side=Side.BUY, quantity=1000))

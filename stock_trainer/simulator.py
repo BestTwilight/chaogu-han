@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from stock_trainer.analytics import TrainingReport, build_report
+from stock_trainer.analytics import TradeReview, TrainingReport, build_report, build_trade_reviews
 from stock_trainer.broker import BrokerConfig, MatchingEngine, Portfolio
 from stock_trainer.clock import MarketClock
 from stock_trainer.data import generate_training_market
@@ -85,6 +85,9 @@ class TradingSimulator:
 
     def report(self) -> TrainingReport:
         return build_report(self.snapshots, self.portfolio.fills)
+
+    def trade_reviews(self) -> list[TradeReview]:
+        return build_trade_reviews(self.portfolio.fills, self.market_data)
 
     def _capture_snapshot(self) -> AccountSnapshot:
         prices = self.current_candles()
