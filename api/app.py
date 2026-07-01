@@ -22,6 +22,10 @@ class OrderRequest(BaseModel):
     quantity: int = Field(gt=0)
     order_type: OrderType = OrderType.MARKET
     limit_price: float | None = None
+    reason: str = ""
+    stop_loss: float | None = None
+    target_price: float | None = None
+    review_note: str = ""
 
 
 @app.get("/state")
@@ -53,6 +57,10 @@ def submit_order(request: OrderRequest) -> dict:
             quantity=request.quantity,
             order_type=request.order_type,
             limit_price=request.limit_price,
+            reason=request.reason,
+            stop_loss=request.stop_loss,
+            target_price=request.target_price,
+            review_note=request.review_note,
         )
         fill = simulator.submit_order(order)
     except KeyError as exc:

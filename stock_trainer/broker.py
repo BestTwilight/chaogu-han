@@ -106,6 +106,10 @@ class MatchingEngine:
             fee=round(fee, 2),
             tax=round(tax, 2),
             timestamp=candle.timestamp,
+            reason=order.reason.strip(),
+            stop_loss=order.stop_loss,
+            target_price=order.target_price,
+            review_note=order.review_note.strip(),
         )
         portfolio.apply_fill(fill, self.config)
         order.filled_quantity += fill.quantity

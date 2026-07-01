@@ -33,6 +33,24 @@ class TradingEngineTest(unittest.TestCase):
         self.assertEqual(simulator.portfolio.positions["TECH_A"].quantity, 1000)
         self.assertLess(simulator.portfolio.cash, 100_000)
 
+    def test_order_plan_is_preserved_on_fill(self) -> None:
+        simulator = TradingSimulator.with_generated_market(days=30, seed=4, cash=100_000)
+        order = Order(
+            symbol="TECH_A",
+            side=Side.BUY,
+            quantity=1000,
+            reason="放量突破",
+            stop_loss=38.5,
+            target_price=48.0,
+            review_note="跌破前低离场",
+        )
+        fill = simulator.submit_order(order)
+        self.assertIsNotNone(fill)
+        self.assertEqual(fill.reason, "放量突破")
+        self.assertEqual(fill.stop_loss, 38.5)
+        self.assertEqual(fill.target_price, 48.0)
+        self.assertEqual(fill.review_note, "跌破前低离场")
+
     def test_t_plus_one_blocks_same_day_sell(self) -> None:
         simulator = TradingSimulator.with_generated_market(days=30, seed=5, cash=100_000)
         simulator.submit_order(Order(symbol="TECH_A", side=Side.BUY, quantity=1000))

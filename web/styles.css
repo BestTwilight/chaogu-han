@@ -25,13 +25,15 @@ body {
 
 button,
 input,
+textarea,
 select {
   font: inherit;
 }
 
 button,
 select,
-input {
+input,
+textarea {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #fff;
@@ -307,10 +309,25 @@ h2 {
 }
 
 .form-row input,
-.form-row select {
+.form-row select,
+.form-row textarea {
   width: 100%;
   min-height: 36px;
   padding: 0 10px;
+}
+
+.form-row textarea {
+  min-height: 54px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-row.split {
+  grid-template-columns: 64px 1fr 1fr;
+}
+
+.form-row.note-row {
+  align-items: start;
 }
 
 .primary {

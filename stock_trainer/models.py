@@ -53,6 +53,10 @@ class Order:
     quantity: int
     order_type: OrderType = OrderType.MARKET
     limit_price: float | None = None
+    reason: str = ""
+    stop_loss: float | None = None
+    target_price: float | None = None
+    review_note: str = ""
     id: str = field(default_factory=lambda: uuid4().hex)
     created_at: datetime | None = None
     status: OrderStatus = OrderStatus.NEW
@@ -71,6 +75,10 @@ class Fill:
     fee: float
     tax: float
     timestamp: datetime
+    reason: str = ""
+    stop_loss: float | None = None
+    target_price: float | None = None
+    review_note: str = ""
 
     @property
     def cash_delta(self) -> float:

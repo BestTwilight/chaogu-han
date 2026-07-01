@@ -294,6 +294,8 @@ function renderFills(fills, symbol) {
       <div>
         <strong><span class="fill-side ${isBuy ? "buy" : "sell"}">${isBuy ? "B" : "S"}</span>${isBuy ? "买入" : "卖出"} ${fill.symbol}</strong>
         <span>${fill.timestamp.slice(0, 10)} | ${fill.quantity} 股</span>
+        ${fill.reason ? `<span>理由：${escapeHtml(fill.reason)}</span>` : ""}
+        ${planLine(fill) ? `<span>${planLine(fill)}</span>` : ""}
       </div>
       <div>
         <strong>${money(fill.price)}</strong>
@@ -302,6 +304,21 @@ function renderFills(fills, symbol) {
     `;
     els.fills.appendChild(item);
   });
+}
+
+function planLine(fill) {
+  const parts = [];
+  if (fill.stop_loss) parts.push(`止损 ${money(fill.stop_loss)}`);
+  if (fill.target_price) parts.push(`目标 ${money(fill.target_price)}`);
+  return parts.join(" | ");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 async function loadReport() {
@@ -548,7 +565,9 @@ function updateTooltip(event, candle, cursorPrice) {
   const tradeRows = fills
     .map((fill) => {
       const label = fill.side === "buy" ? "买入" : "卖出";
-      return `<div><span>${label}</span><strong>${fill.quantity} 股 @ ${money(fill.price)}</strong></div>`;
+      const reason = fill.reason ? `<div><span>理由</span><strong>${escapeHtml(fill.reason)}</strong></div>` : "";
+      const plan = planLine(fill) ? `<div><span>计划</span><strong>${planLine(fill)}</strong></div>` : "";
+      return `<div><span>${label}</span><strong>${fill.quantity} 股 @ ${money(fill.price)}</strong></div>${reason}${plan}`;
     })
     .join("");
   els.chartTooltip.innerHTML = `
@@ -619,6 +638,10 @@ els.orderForm.addEventListener("submit", async (event) => {
     quantity: Number(form.get("quantity")),
     order_type: form.get("order_type"),
     limit_price: form.get("limit_price"),
+    reason: form.get("reason"),
+    stop_loss: form.get("stop_loss"),
+    target_price: form.get("target_price"),
+    review_note: form.get("review_note"),
   };
   try {
     const result = await api("/api/orders", {

@@ -71,6 +71,10 @@ class TrainerHandler(SimpleHTTPRequestHandler):
                     quantity=int(payload["quantity"]),
                     order_type=OrderType(str(payload.get("order_type", "market"))),
                     limit_price=_optional_float(payload.get("limit_price")),
+                    reason=str(payload.get("reason", "")).strip(),
+                    stop_loss=_optional_float(payload.get("stop_loss")),
+                    target_price=_optional_float(payload.get("target_price")),
+                    review_note=str(payload.get("review_note", "")).strip(),
                 )
                 fill = simulator.submit_order(order)
                 self._send_json(
