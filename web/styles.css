@@ -359,7 +359,8 @@ h2 {
 
 .position,
 .fill,
-.trade-review {
+.trade-review,
+.run-card {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 5px;
@@ -376,13 +377,15 @@ h2 {
 
 .position span,
 .fill span,
-.trade-review span {
+.trade-review span,
+.run-card span {
   display: block;
   color: var(--muted);
   line-height: 1.55;
 }
 
-.trade-review strong {
+.trade-review strong,
+.run-card strong {
   font-size: 14px;
 }
 

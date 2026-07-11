@@ -23,9 +23,11 @@ if str(ROOT) not in sys.path:
 from stock_trainer.models import Order, OrderType, Side
 from stock_trainer.simulator import TradingSimulator
 from stock_trainer.historical import HistoricalDataError, list_historical_csvs
+from stock_trainer.runs import load_training_runs, save_training_run
 
 
 DATA_DIR = ROOT / "data" / "historical"
+RUNS_PATH = ROOT / "data" / "training_runs.jsonl"
 session_mode = "generated"
 session_seed = 7
 session_message = "结构化模拟行情"
@@ -49,6 +51,9 @@ class TrainerHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/api/datasets":
             self._send_json(_datasets_payload())
+            return
+        if parsed.path == "/api/runs":
+            self._send_json({"runs": load_training_runs(RUNS_PATH)})
             return
         if parsed.path == "/":
             self.path = "/index.html"
@@ -88,6 +93,10 @@ class TrainerHandler(SimpleHTTPRequestHandler):
             if parsed.path == "/api/reset":
                 _reset_simulator(payload)
                 self._send_json(_state_payload(payload.get("symbol")))
+                return
+            if parsed.path == "/api/save-run":
+                run = save_training_run(RUNS_PATH, simulator, session_mode, session_seed, session_message)
+                self._send_json({"run": run, "runs": load_training_runs(RUNS_PATH)})
                 return
         except (HistoricalDataError, KeyError, ValueError, TypeError) as exc:
             self._send_json({"error": str(exc)}, status=400)

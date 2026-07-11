@@ -21,6 +21,7 @@
           <select id="symbolSelect" aria-label="选择标的"></select>
           <button id="stepOne" type="button">推进 1 日</button>
           <button id="stepFive" type="button">推进 5 日</button>
+          <button id="saveRun" type="button">保存本轮</button>
           <button id="resetSession" type="button">重置</button>
         </div>
       </header>
@@ -128,6 +129,11 @@
               <div><span>盈亏比</span><strong id="profitFactor">--</strong></div>
             </div>
             <ul id="coachNotes" class="notes"></ul>
+          </section>
+
+          <section class="panel">
+            <h2>训练记录</h2>
+            <div id="runHistory" class="list empty">暂无保存记录</div>
           </section>
         </aside>
       </section>

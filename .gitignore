@@ -8,3 +8,4 @@ venv/
 dist/
 build/
 *.egg-info/
+data/training_runs.jsonl

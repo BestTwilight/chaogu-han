@@ -6,6 +6,7 @@ import unittest
 
 from stock_trainer.historical import create_blind_historical_market, load_historical_series
 from stock_trainer.models import Order, OrderStatus, Side
+from stock_trainer.runs import load_training_runs, save_training_run
 from stock_trainer.simulator import TradingSimulator
 
 
@@ -123,6 +124,20 @@ class TradingEngineTest(unittest.TestCase):
         simulator.step(2)
         self.assertGreaterEqual(len(simulator.snapshots), 4)
         self.assertTrue(all(snapshot.total_equity > 0 for snapshot in simulator.snapshots))
+
+    def test_training_run_can_be_saved_and_loaded(self) -> None:
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "runs.jsonl"
+            simulator = TradingSimulator.with_generated_market(days=20, seed=12, cash=100_000)
+            simulator.step(2)
+            simulator.submit_order(Order(symbol="TECH_A", side=Side.BUY, quantity=1000))
+            run = save_training_run(path, simulator, "generated", 12, "结构化模拟行情")
+            loaded = load_training_runs(path)
+            self.assertEqual(len(loaded), 1)
+            self.assertEqual(loaded[0]["id"], run["id"])
+            self.assertEqual(loaded[0]["mode"], "generated")
+            self.assertEqual(loaded[0]["trade_count"], 1)
+            self.assertIn("total_return", loaded[0])
 
     def _write_csv(self, path: Path, symbol: str, start_price: float) -> None:
         lines = ["date,symbol,industry,open,high,low,close,volume"]

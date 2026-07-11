@@ -13,6 +13,7 @@ const els = {
   symbolSelect: document.querySelector("#symbolSelect"),
   stepOne: document.querySelector("#stepOne"),
   stepFive: document.querySelector("#stepFive"),
+  saveRun: document.querySelector("#saveRun"),
   resetSession: document.querySelector("#resetSession"),
   symbolTitle: document.querySelector("#symbolTitle"),
   symbolSub: document.querySelector("#symbolSub"),
@@ -41,6 +42,7 @@ const els = {
   winRate: document.querySelector("#winRate"),
   profitFactor: document.querySelector("#profitFactor"),
   coachNotes: document.querySelector("#coachNotes"),
+  runHistory: document.querySelector("#runHistory"),
 };
 
 function money(value) {
@@ -86,6 +88,11 @@ async function loadDatasets() {
       ? `历史盲测 (${datasets.historical_count})`
       : "历史盲测 (请放CSV)";
   }
+}
+
+async function loadRuns() {
+  const payload = await api("/api/runs");
+  renderRuns(payload.runs || []);
 }
 
 function render(payload) {
@@ -341,6 +348,48 @@ function renderTradeReviews(reviews, symbol) {
     `;
     els.tradeReviews.appendChild(item);
   });
+}
+
+function renderRuns(runs) {
+  if (!runs.length) {
+    els.runHistory.className = "list empty";
+    els.runHistory.textContent = "暂无保存记录";
+    return;
+  }
+  els.runHistory.className = "list";
+  els.runHistory.innerHTML = "";
+  runs.slice(0, 8).forEach((run) => {
+    const item = document.createElement("div");
+    const returnClass = Number(run.total_return) >= 0 ? "up" : "down";
+    item.className = "run-card";
+    item.innerHTML = `
+      <div>
+        <strong>${run.mode === "historical" ? "历史盲测" : "模拟行情"} #${run.id}</strong>
+        <span>${run.saved_at} | ${run.bars_completed}/${run.total_bars} 根K线</span>
+        <span>交易 ${run.trade_count} | 闭合 ${run.closed_trade_count} | 回撤 ${percent(run.max_drawdown)}</span>
+      </div>
+      <div>
+        <strong class="${returnClass}">${percent(run.total_return)}</strong>
+        <span>${money(run.end_equity)}</span>
+      </div>
+    `;
+    els.runHistory.appendChild(item);
+  });
+}
+
+async function saveRun() {
+  try {
+    const payload = await api("/api/save-run", {
+      method: "POST",
+      body: JSON.stringify({}),
+    });
+    renderRuns(payload.runs || []);
+    els.orderMessage.textContent = `已保存训练记录 #${payload.run.id}`;
+    els.orderMessage.className = "message";
+  } catch (error) {
+    els.orderMessage.textContent = error.message;
+    els.orderMessage.className = "message error";
+  }
 }
 
 function planLine(fill) {
@@ -659,6 +708,7 @@ els.modeSelect.addEventListener("change", () => {
 });
 els.stepOne.addEventListener("click", () => step(1));
 els.stepFive.addEventListener("click", () => step(5));
+els.saveRun.addEventListener("click", saveRun);
 els.resetSession.addEventListener("click", reset);
 els.canvas.addEventListener("mousemove", handleCanvasMove);
 els.canvas.addEventListener("mouseleave", handleCanvasLeave);
@@ -709,4 +759,5 @@ window.addEventListener("resize", () => {
 
 els.limitRow.style.display = "none";
 loadDatasets();
+loadRuns();
 loadState();
