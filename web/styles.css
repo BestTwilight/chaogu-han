@@ -184,6 +184,50 @@ h2 {
   color: var(--ink);
 }
 
+.indicator-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
+.ma-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfcfd;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ma-toggle::before {
+  content: "";
+  width: 14px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.ma-toggle.ma5 {
+  color: #c77d00;
+}
+
+.ma-toggle.ma10 {
+  color: #1f6feb;
+}
+
+.ma-toggle.ma20 {
+  color: #8a4fd3;
+}
+
+.ma-toggle.ma60 {
+  color: #4f6f52;
+}
+
 .chart-tooltip {
   position: absolute;
   z-index: 2;

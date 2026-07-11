@@ -40,6 +40,12 @@
             </div>
           </div>
           <div id="hoverInfo" class="hover-info">移动鼠标查看 K 线详情</div>
+          <div class="indicator-bar" aria-label="均线开关">
+            <label class="ma-toggle ma5"><input type="checkbox" data-ma="5" checked> MA5</label>
+            <label class="ma-toggle ma10"><input type="checkbox" data-ma="10" checked> MA10</label>
+            <label class="ma-toggle ma20"><input type="checkbox" data-ma="20" checked> MA20</label>
+            <label class="ma-toggle ma60"><input type="checkbox" data-ma="60"> MA60</label>
+          </div>
           <div class="chart-wrap">
             <canvas id="priceCanvas" width="1100" height="560"></canvas>
             <div id="chartTooltip" class="chart-tooltip" hidden></div>

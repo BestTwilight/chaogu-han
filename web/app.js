@@ -2,6 +2,12 @@ const state = {
   selectedSymbol: "TECH_A",
   lastPayload: null,
   localSnapshots: [],
+  movingAverages: {
+    5: true,
+    10: true,
+    20: true,
+    60: false,
+  },
   hoverIndex: null,
   hoverY: null,
   chartLayout: null,
@@ -23,6 +29,7 @@ const els = {
   canvas: document.querySelector("#priceCanvas"),
   hoverInfo: document.querySelector("#hoverInfo"),
   chartTooltip: document.querySelector("#chartTooltip"),
+  maToggles: Array.from(document.querySelectorAll("[data-ma]")),
   totalEquity: document.querySelector("#totalEquity"),
   cash: document.querySelector("#cash"),
   marketValue: document.querySelector("#marketValue"),
@@ -439,11 +446,16 @@ function drawChart(candles, fills = []) {
   const priceHeight = height - padding.top - padding.bottom - volumeHeight - 18;
   const visible = candles.slice(-90);
   if (!visible.length) return;
+  const enabledPeriods = activeMovingAveragePeriods();
+  const maSeries = buildMovingAverageSeries(candles, enabledPeriods);
+  const visibleMaValues = enabledPeriods.flatMap((period) =>
+    maSeries[period].slice(firstVisibleStart(candles, visible)).filter((value) => value !== null)
+  );
 
   const highs = visible.map((candle) => candle.high);
   const lows = visible.map((candle) => candle.low);
-  const maxPrice = Math.max(...highs);
-  const minPrice = Math.min(...lows);
+  const maxPrice = Math.max(...highs, ...visibleMaValues);
+  const minPrice = Math.min(...lows, ...visibleMaValues);
   const priceRange = Math.max(0.01, maxPrice - minPrice);
   const maxVolume = Math.max(...visible.map((candle) => candle.volume));
   const plotWidth = width - padding.left - padding.right;
@@ -494,6 +506,14 @@ function drawChart(candles, fills = []) {
     ctx.globalAlpha = 1;
   });
 
+  drawMovingAverages(ctx, maSeries, enabledPeriods, {
+    firstVisibleIndex,
+    visibleLength: visible.length,
+    candleGap,
+    padding,
+    priceY,
+  });
+
   drawTradeMarkers(ctx, visible, fills, {
     padding,
     candleGap,
@@ -531,6 +551,73 @@ function drawChart(candles, fills = []) {
     visible,
     priceFromY,
   };
+}
+
+function firstVisibleStart(candles, visible) {
+  return candles.length - visible.length;
+}
+
+function activeMovingAveragePeriods() {
+  return Object.entries(state.movingAverages)
+    .filter(([, enabled]) => enabled)
+    .map(([period]) => Number(period))
+    .sort((a, b) => a - b);
+}
+
+function buildMovingAverageSeries(candles, periods) {
+  const closes = candles.map((candle) => candle.close);
+  const result = {};
+  periods.forEach((period) => {
+    const values = [];
+    let rolling = 0;
+    closes.forEach((close, index) => {
+      rolling += close;
+      if (index >= period) {
+        rolling -= closes[index - period];
+      }
+      values.push(index >= period - 1 ? rolling / period : null);
+    });
+    result[period] = values;
+  });
+  return result;
+}
+
+function movingAverageColor(period) {
+  return {
+    5: "#c77d00",
+    10: "#1f6feb",
+    20: "#8a4fd3",
+    60: "#4f6f52",
+  }[period] || "#687789";
+}
+
+function drawMovingAverages(ctx, maSeries, periods, layout) {
+  periods.forEach((period) => {
+    const values = maSeries[period] || [];
+    ctx.save();
+    ctx.strokeStyle = movingAverageColor(period);
+    ctx.lineWidth = period >= 60 ? 1.4 : 1.8;
+    ctx.beginPath();
+    let started = false;
+    for (let localIndex = 0; localIndex < layout.visibleLength; localIndex += 1) {
+      const absoluteIndex = layout.firstVisibleIndex + localIndex;
+      const value = values[absoluteIndex];
+      if (value === null || value === undefined) {
+        started = false;
+        continue;
+      }
+      const x = layout.padding.left + layout.candleGap * localIndex + layout.candleGap / 2;
+      const y = layout.priceY(value);
+      if (!started) {
+        ctx.moveTo(x, y);
+        started = true;
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  });
 }
 
 function drawTradeMarkers(ctx, visible, fills, layout) {
@@ -633,6 +720,7 @@ function updateHoverInfo(candle) {
   const previous = candles[index - 1] || candle;
   const change = candle.close / previous.close - 1;
   const className = change >= 0 ? "up" : "down";
+  const maText = movingAverageHoverText(candles, index);
   els.hoverInfo.innerHTML = `
     <strong>${candle.timestamp.slice(0, 10)}</strong>
     开 ${money(candle.open)}
@@ -641,10 +729,13 @@ function updateHoverInfo(candle) {
     收 <span class="${className}">${money(candle.close)}</span>
     涨跌 <span class="${className}">${percent(change)}</span>
     量 ${candle.volume.toLocaleString("zh-CN")}
+    ${maText}
   `;
 }
 
 function updateTooltip(event, candle, cursorPrice) {
+  const candleIndex = state.lastPayload.candles.findIndex((item) => item.timestamp === candle.timestamp);
+  const maRows = movingAverageTooltipRows(state.lastPayload.candles, candleIndex);
   const fills = state.lastPayload.fills.filter(
     (fill) => fill.symbol === state.selectedSymbol && fill.timestamp.slice(0, 10) === candle.timestamp.slice(0, 10)
   );
@@ -664,6 +755,7 @@ function updateTooltip(event, candle, cursorPrice) {
     <div><span>收</span><strong>${money(candle.close)}</strong></div>
     <div><span>指针价</span><strong>${money(cursorPrice)}</strong></div>
     <div><span>成交量</span><strong>${candle.volume.toLocaleString("zh-CN")}</strong></div>
+    ${maRows}
     ${tradeRows}
   `;
   const wrapRect = els.canvas.parentElement.getBoundingClientRect();
@@ -672,6 +764,37 @@ function updateTooltip(event, candle, cursorPrice) {
   els.chartTooltip.style.left = `${left}px`;
   els.chartTooltip.style.top = `${top}px`;
   els.chartTooltip.hidden = false;
+}
+
+function movingAverageValueAt(candles, index, period) {
+  if (index < period - 1) return null;
+  let total = 0;
+  for (let offset = index - period + 1; offset <= index; offset += 1) {
+    total += candles[offset].close;
+  }
+  return total / period;
+}
+
+function movingAverageHoverText(candles, index) {
+  const parts = activeMovingAveragePeriods()
+    .map((period) => {
+      const value = movingAverageValueAt(candles, index, period);
+      return value === null ? "" : `<span style="color:${movingAverageColor(period)}">MA${period} ${money(value)}</span>`;
+    })
+    .filter(Boolean);
+  return parts.join(" ");
+}
+
+function movingAverageTooltipRows(candles, index) {
+  return activeMovingAveragePeriods()
+    .map((period) => {
+      const value = movingAverageValueAt(candles, index, period);
+      return value === null
+        ? ""
+        : `<div><span style="color:${movingAverageColor(period)}">MA${period}</span><strong>${money(value)}</strong></div>`;
+    })
+    .filter(Boolean)
+    .join("");
 }
 
 async function step(bars) {
@@ -710,6 +833,15 @@ els.stepOne.addEventListener("click", () => step(1));
 els.stepFive.addEventListener("click", () => step(5));
 els.saveRun.addEventListener("click", saveRun);
 els.resetSession.addEventListener("click", reset);
+els.maToggles.forEach((toggle) => {
+  toggle.addEventListener("change", (event) => {
+    const period = Number(event.target.dataset.ma);
+    state.movingAverages[period] = event.target.checked;
+    if (state.lastPayload) {
+      drawChart(state.lastPayload.candles, state.lastPayload.fills);
+    }
+  });
+});
 els.canvas.addEventListener("mousemove", handleCanvasMove);
 els.canvas.addEventListener("mouseleave", handleCanvasLeave);
 els.orderType.addEventListener("change", () => {
